@@ -64,7 +64,7 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? titleId : undefined}
@@ -77,24 +77,24 @@ export function Dialog({
         aria-hidden="true"
       />
 
-      {/* Modal Surface */}
+      {/* Modal Surface - responsive max-w constraint for 320px screens */}
       <div
         ref={dialogRef}
-        className={`relative w-full ${sizeClasses[size]} bg-white rounded-xl border border-fixnear-border shadow-xl z-10 flex flex-col max-h-[calc(100vh-2rem)] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 ${className}`}
+        className={`relative w-full max-w-[calc(100vw-1.5rem)] ${sizeClasses[size]} bg-white rounded-xl border border-fixnear-border shadow-xl z-10 flex flex-col max-h-[calc(100vh-2rem)] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 ${className}`}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-5 sm:p-6 pb-4 border-b border-fixnear-border/80">
-          <div className="pr-6">
+        <div className="flex items-start justify-between p-4 sm:p-6 pb-3 sm:pb-4 border-b border-fixnear-border/80 gap-3">
+          <div className="pr-2 min-w-0">
             {title && (
               <h2
                 id={titleId}
-                className="text-lg sm:text-xl font-bold text-fixnear-navy leading-snug"
+                className="text-base sm:text-xl font-bold text-fixnear-navy leading-snug break-words"
               >
                 {title}
               </h2>
             )}
             {description && (
-              <p id={descId} className="text-xs sm:text-sm text-fixnear-muted mt-1 leading-normal">
+              <p id={descId} className="text-xs sm:text-sm text-fixnear-muted mt-1 leading-normal break-words">
                 {description}
               </p>
             )}
@@ -104,7 +104,7 @@ export function Dialog({
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-fixnear-muted hover:text-fixnear-navy hover:bg-fixnear-bg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring shrink-0 cursor-pointer"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-lg flex items-center justify-center text-fixnear-muted hover:text-fixnear-navy hover:bg-fixnear-bg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring shrink-0 cursor-pointer -mr-1 -mt-1"
           >
             <svg
               className="w-4 h-4"
@@ -124,13 +124,13 @@ export function Dialog({
         </div>
 
         {/* Content */}
-        <div className="p-5 sm:p-6 overflow-y-auto text-sm text-fixnear-text space-y-4">
+        <div className="p-4 sm:p-6 overflow-y-auto text-sm text-fixnear-text space-y-4">
           {children}
         </div>
 
-        {/* Footer */}
+        {/* Footer - stacks on mobile, horizontal on tablet/desktop */}
         {footer && (
-          <div className="p-4 sm:p-6 pt-3 sm:pt-4 border-t border-fixnear-border/80 bg-fixnear-bg/50 flex flex-wrap items-center justify-end gap-3">
+          <div className="p-3 sm:p-6 pt-3 sm:pt-4 border-t border-fixnear-border/80 bg-fixnear-bg/50 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2 sm:gap-3 w-full">
             {footer}
           </div>
         )}

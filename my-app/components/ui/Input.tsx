@@ -65,7 +65,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             aria-describedby={
               hasError ? errorId : helperText ? helperId : undefined
             }
-            className={`w-full h-10 px-3.5 text-sm bg-white text-fixnear-text rounded-lg border transition-colors duration-150 ease-in-out placeholder:text-fixnear-muted/60 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+            className={`w-full h-10 px-3.5 text-base sm:text-sm bg-white text-fixnear-text rounded-lg border transition-colors duration-150 ease-in-out placeholder:text-fixnear-muted/60 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
               leadingIcon ? "pl-10" : ""
             } ${trailingIcon ? "pr-10" : ""} ${
               hasError

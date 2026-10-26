@@ -949,6 +949,100 @@ export default function DesignSystemPage() {
             ))}
           </div>
         </section>
+
+        {/* Section 9: Shared Website Layout & Dashboard Shells */}
+        <section id="layout-foundations" className="space-y-4">
+          <div className="border-b border-fixnear-border pb-3 flex items-baseline justify-between">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-fixnear-navy">
+                9. Shared Website Layout &amp; Dashboard Shells
+              </h2>
+              <p className="text-xs sm:text-sm text-fixnear-muted mt-0.5">
+                Module 2 Part 3 architecture: Public website layout with mobile drawer, global footer, and configurable dashboard shells.
+              </p>
+            </div>
+            <Link href="/dashboard-preview">
+              <Button variant="outline" size="sm">
+                Launch Full-Screen Shell Preview &rarr;
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between mb-1">
+                  <Badge variant="info" size="sm">
+                    Public Layout
+                  </Badge>
+                  <span className="text-xs text-fixnear-muted font-mono">
+                    components/layout/PublicLayout.tsx
+                  </span>
+                </div>
+                <CardTitle>Public Website Shell</CardTitle>
+                <CardDescription>
+                  Customer-facing navigation bar, responsive drawer, and global footer
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs sm:text-sm text-fixnear-muted">
+                <p>
+                  • <strong>PublicNavbar</strong>: Features FixNear logo mark, semantic links (Home, Find Professionals, Services, How It Works, Design System), Log In / Sign Up buttons, active path highlighting, and an accessible mobile drawer with Escape key dismiss.
+                </p>
+                <p>
+                  • <strong>PublicFooter</strong>: Multi-column responsive footer with dynamic copyright year (e.g. 2026), trade category links, customer support topics, and neutral marketplace description (no fabricated address/phone).
+                </p>
+                <p>
+                  • <strong>PageContainer</strong>: Configurable maximum width (default 1280px) with responsive horizontal padding and no horizontal overflow on mobile screens.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Link href="/" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full">
+                    View Live Public Layout on Homepage &rarr;
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between mb-1">
+                  <Badge variant="amber" size="sm">
+                    Dashboard Shell
+                  </Badge>
+                  <span className="text-xs text-fixnear-muted font-mono">
+                    components/layout/DashboardShell.tsx
+                  </span>
+                </div>
+                <CardTitle>Configurable Dashboard Foundations</CardTitle>
+                <CardDescription>
+                  Supports Customer, Technician, and Admin roles without fake auth
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs sm:text-sm text-fixnear-muted">
+                <p>
+                  • <strong>Customer Portal</strong>: Overview, My Bookings, Profile, Reviews.
+                </p>
+                <p>
+                  • <strong>Technician Pro</strong>: Overview, Bookings, Schedule, Services, Profile.
+                </p>
+                <p>
+                  • <strong>Admin Console</strong>: Overview, Customers, Technicians, Bookings, Reports, Settings.
+                </p>
+                <p>
+                  • <strong>Responsive Architecture</strong>: Fixed desktop sidebar (w-64) + mobile slide-out drawer with backdrop blur, scroll locking, and seamless exit link.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Link href="/dashboard-preview" className="w-full">
+                  <Button variant="primary" size="sm" className="w-full">
+                    Interactive Dashboard Shell Switcher &rarr;
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+          </div>
+        </section>
       </main>
     </div>
   );

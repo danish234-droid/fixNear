@@ -59,7 +59,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             aria-describedby={
               hasError ? errorId : helperText ? helperId : undefined
             }
-            className={`w-full h-10 pl-3.5 pr-10 text-sm bg-white text-fixnear-text rounded-lg border appearance-none transition-colors duration-150 ease-in-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+            className={`w-full h-10 pl-3.5 pr-10 text-base sm:text-sm bg-white text-fixnear-text rounded-lg border appearance-none transition-colors duration-150 ease-in-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 ${
               hasError
                 ? "border-fixnear-error focus:border-fixnear-error focus:ring-fixnear-error/30"
                 : "border-fixnear-border focus:border-fixnear-ring focus:ring-fixnear-ring/25"

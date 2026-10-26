@@ -49,7 +49,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-describedby={
             hasError ? errorId : helperText ? helperId : undefined
           }
-          className={`w-full min-h-[96px] p-3 text-sm bg-white text-fixnear-text rounded-lg border transition-colors duration-150 ease-in-out placeholder:text-fixnear-muted/60 focus:outline-none focus:ring-2 focus:ring-offset-1 resize-y ${
+          className={`w-full min-h-[96px] p-3 text-base sm:text-sm bg-white text-fixnear-text rounded-lg border transition-colors duration-150 ease-in-out placeholder:text-fixnear-muted/60 focus:outline-none focus:ring-2 focus:ring-offset-1 resize-y ${
             hasError
               ? "border-fixnear-error focus:border-fixnear-error focus:ring-fixnear-error/30"
               : "border-fixnear-border focus:border-fixnear-ring focus:ring-fixnear-ring/25"

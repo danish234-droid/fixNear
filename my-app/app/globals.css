@@ -71,12 +71,13 @@
   --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* Base resets & typography */
+/* Base resets & responsive defaults */
 html {
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
 }
 
 *, *::before, *::after {
@@ -90,6 +91,19 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Responsive media containment */
+img, svg, video, canvas, audio, iframe, embed, object {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Typography text wrap safety */
+p, h1, h2, h3, h4, h5, h6, span {
+  overflow-wrap: break-word;
 }
 
 /* Selection state */
