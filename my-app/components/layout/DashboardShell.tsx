@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui";
+import { usePathname } from "next/navigation";
+import { Badge } from "@/components/ui/Badge";
+import { Avatar } from "@/components/ui/Avatar";
 import {
   DashboardRole,
   DashboardNavItem,
@@ -17,6 +19,8 @@ export interface DashboardShellProps {
   activeHref?: string;
   onNavItemClick?: (item: DashboardNavItem) => void;
   customNavItems?: DashboardNavItem[];
+  /** Display name shown in top-bar avatar. Falls back to initials. */
+  userName?: string;
   children: React.ReactNode;
 }
 
@@ -93,12 +97,14 @@ export function DashboardShell({
   title,
   subtitle,
   actions,
-  activeHref = "#overview",
+  activeHref,
   onNavItemClick,
   customNavItems,
+  userName,
   children,
 }: DashboardShellProps) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const pathname = usePathname();
   const config = roleConfig[role];
   const items = customNavItems || config.navItems;
 
@@ -127,6 +133,13 @@ export function DashboardShell({
     }
   }, [mobileDrawerOpen]);
 
+  const isActive = (href: string) => {
+    if (activeHref) return activeHref === href;
+    // Default: match on pathname, ignoring hash fragments
+    const hrefPath = href.split("#")[0];
+    return pathname === hrefPath && !href.includes("#");
+  };
+
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white border-r border-fixnear-border">
       {/* Brand & Portal Header */}
@@ -144,37 +157,34 @@ export function DashboardShell({
               FixNear
             </span>
             <span className="text-[10px] text-fixnear-muted font-medium uppercase tracking-wider block">
-              Portal Foundation
+              {config.badgeLabel}
             </span>
           </div>
         </Link>
         <Badge variant={config.badgeVariant} size="sm" className="shrink-0">
-          {config.badgeLabel}
+          {role === "admin" ? "Admin" : role === "professional" ? "Pro" : "You"}
         </Badge>
       </div>
 
       {/* Navigation Links */}
       <nav className="flex-1 p-3.5 space-y-1 overflow-y-auto" aria-label="Portal Navigation">
         {items.map((item) => {
-          const isActive = activeHref === item.href;
+          const active = isActive(item.href);
 
           return (
-            <a
+            <Link
               key={item.label}
               href={item.href}
-              onClick={(e) => {
-                if (onNavItemClick) {
-                  e.preventDefault();
-                  onNavItemClick(item);
-                }
+              onClick={() => {
+                if (onNavItemClick) onNavItemClick(item);
                 setMobileDrawerOpen(false);
               }}
               className={`flex items-center justify-between px-3.5 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring ${
-                isActive
+                active
                   ? "bg-[#EEF6FC] text-fixnear-blue font-semibold"
                   : "text-fixnear-text hover:bg-fixnear-bg hover:text-fixnear-navy active:bg-slate-100"
               }`}
-              aria-current={isActive ? "page" : undefined}
+              aria-current={active ? "page" : undefined}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <NavIcon name={item.iconName} />
@@ -185,20 +195,22 @@ export function DashboardShell({
                   {item.badge}
                 </span>
               )}
-            </a>
+            </Link>
           );
         })}
       </nav>
 
-      {/* Footer Info Box */}
+      {/* Sidebar Footer */}
       <div className="p-4 border-t border-fixnear-border bg-fixnear-bg/60">
-        <div className="text-[11px] text-fixnear-muted leading-relaxed">
-          <p className="font-semibold text-fixnear-navy">Dashboard Foundation</p>
+        {/* Dev notice */}
+        <div className="text-[11px] text-fixnear-muted leading-relaxed mb-3">
+          <p className="font-semibold text-fixnear-navy">Development Preview</p>
           <p className="mt-0.5">
-            Configurable shell layout for future authenticated modules.
+            Role-based access control is not yet connected. These pages are UI
+            previews only.
           </p>
         </div>
-        <div className="mt-3 pt-3 border-t border-fixnear-border/60">
+        <div className="pt-3 border-t border-fixnear-border/60">
           <Link
             href="/"
             className="text-xs text-fixnear-blue hover:text-fixnear-blue-hover font-medium flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring rounded min-h-[36px]"
@@ -290,13 +302,15 @@ export function DashboardShell({
             >
               Design System
             </Link>
-            <div className="w-8 h-8 rounded-full bg-fixnear-navy text-white text-xs font-bold flex items-center justify-center shrink-0">
-              FN
-            </div>
+            <Avatar
+              name={userName}
+              size="sm"
+              aria-label={userName ? `${userName} profile` : "User profile"}
+            />
           </div>
         </header>
 
-        {/* Page Heading Banner - responsive flex-col to flex-row */}
+        {/* Page Heading Banner */}
         <div className="bg-white border-b border-fixnear-border py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <div className="min-w-0">

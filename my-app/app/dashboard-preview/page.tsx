@@ -10,9 +10,15 @@ import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent, Badg
 
 export default function DashboardPreviewPage() {
   const [selectedRole, setSelectedRole] = useState<DashboardRole>("customer");
-  const [activeNav, setActiveNav] = useState("#overview");
+  const [activeNav, setActiveNav] = useState("/dashboard/customer");
 
   const currentConfig = roleConfig[selectedRole];
+
+  const roleHrefs: Record<DashboardRole, string> = {
+    customer:     "/dashboard/customer",
+    professional: "/dashboard/professional",
+    admin:        "/dashboard/admin",
+  };
 
   return (
     <DashboardShell
@@ -27,21 +33,21 @@ export default function DashboardPreviewPage() {
             className="flex-1 sm:flex-initial"
             onClick={() => {
               setSelectedRole("customer");
-              setActiveNav("#overview");
+              setActiveNav(roleHrefs.customer);
             }}
           >
             Customer View
           </Button>
           <Button
-            variant={selectedRole === "technician" ? "primary" : "outline"}
+            variant={selectedRole === "professional" ? "primary" : "outline"}
             size="sm"
             className="flex-1 sm:flex-initial"
             onClick={() => {
-              setSelectedRole("technician");
-              setActiveNav("#overview");
+              setSelectedRole("professional");
+              setActiveNav(roleHrefs.professional);
             }}
           >
-            Technician View
+            Professional View
           </Button>
           <Button
             variant={selectedRole === "admin" ? "primary" : "outline"}
@@ -49,7 +55,7 @@ export default function DashboardPreviewPage() {
             className="flex-1 sm:flex-initial"
             onClick={() => {
               setSelectedRole("admin");
-              setActiveNav("#overview");
+              setActiveNav(roleHrefs.admin);
             }}
           >
             Admin View
@@ -74,10 +80,10 @@ export default function DashboardPreviewPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-xs sm:text-sm text-fixnear-muted">
             <p>
-              This is a shared, configurable layout shell developed in Module 2 Part 3.
-              It establishes the visual foundation, responsive sidebar, top bar, and
-              navigation structure for future authenticated features without implementing
-              backend authentication or real database queries.
+              This page previews the shared DashboardShell with each role&apos;s
+              navigation config. Use the role-switcher above to explore each
+              portal variant. Real role-based access control will be implemented
+              in a future backend module.
             </p>
             <div className="p-3.5 bg-fixnear-bg rounded-lg border border-fixnear-border">
               <span className="font-semibold text-fixnear-navy block mb-1">
@@ -102,7 +108,7 @@ export default function DashboardPreviewPage() {
             </CardHeader>
             <CardContent className="text-xs text-fixnear-muted space-y-2">
               <p>• Fixed 256px (w-64) sidebar on viewports &ge; 1024px.</p>
-              <p>• Fixed top header bar with role badge, breadcrumb, and profile marker.</p>
+              <p>• Fixed top header bar with role badge, breadcrumb, and avatar.</p>
               <p>• Scrollable sidebar navigation with active indicator styling.</p>
               <p>• Seamless exit link back to public marketplace.</p>
             </CardContent>
