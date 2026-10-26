@@ -38,8 +38,8 @@ export function PublicFooter() {
   ];
 
   return (
-    <footer className="bg-white border-t border-fixnear-border mt-auto w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+    <footer className="bg-fixnear-surface border-t border-fixnear-border mt-auto w-full">
+      <div className="fixnear-container py-10 sm:py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
           {/* Brand Column (spans 2 on large screens, full width on mobile) */}
           <div className="sm:col-span-2 space-y-4">
@@ -71,7 +71,7 @@ export function PublicFooter() {
           </div>
 
           {/* Quick Navigation */}
-          <div>
+          <nav aria-label="Quick navigation"><div>
             <h3 className="text-xs font-semibold text-fixnear-navy uppercase tracking-wider mb-3">
               Explore FixNear
             </h3>
@@ -80,17 +80,17 @@ export function PublicFooter() {
                 <li key={item.label}>
                   <Link
                     href={item.href}
-                    className="text-fixnear-muted hover:text-fixnear-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring rounded py-0.5 inline-block"
+                    className="text-fixnear-muted hover:text-fixnear-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-fixnear-ring rounded py-0.5 inline-block"
                   >
                     {item.label}
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
+          </div></nav>
 
           {/* Service Disciplines */}
-          <div>
+          <nav aria-label="Service categories"><div>
             <h3 className="text-xs font-semibold text-fixnear-navy uppercase tracking-wider mb-3">
               Service Categories
             </h3>
@@ -99,17 +99,17 @@ export function PublicFooter() {
                 <li key={item.label}>
                   <Link
                     href={item.href}
-                    className="text-fixnear-muted hover:text-fixnear-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring rounded py-0.5 inline-block"
+                    className="text-fixnear-muted hover:text-fixnear-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-fixnear-ring rounded py-0.5 inline-block"
                   >
                     {item.label}
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
+          </div></nav>
 
           {/* Help & Policies */}
-          <div>
+          <nav aria-label="Support and policies"><div>
             <h3 className="text-xs font-semibold text-fixnear-navy uppercase tracking-wider mb-3">
               Support &amp; Trust
             </h3>
@@ -118,18 +118,18 @@ export function PublicFooter() {
                 <li key={item.label}>
                   <Link
                     href={item.href}
-                    className="text-fixnear-muted hover:text-fixnear-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring rounded py-0.5 inline-block"
+                    className="text-fixnear-muted hover:text-fixnear-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-fixnear-ring rounded py-0.5 inline-block"
                   >
                     {item.label}
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
+          </div></nav>
         </div>
 
         {/* Bottom Legal & Dynamic Copyright Bar */}
-        <div className="mt-10 sm:mt-12 pt-6 sm:pt-8 border-t border-fixnear-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-fixnear-muted">
+        <div className="fixnear-container mt-10 sm:mt-12 pt-6 sm:pt-8 border-t border-fixnear-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-fixnear-muted">
           <p>
             &copy; {currentYear} FixNear Marketplace. All rights reserved.
           </p>
