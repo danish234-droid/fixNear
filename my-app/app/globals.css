@@ -1,26 +1,141 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* FixNear Official Brand Tokens */
+  --fixnear-navy: #173b57;
+  --fixnear-navy-hover: #122e44;
+  --fixnear-navy-light: #f0f4f8;
+
+  --fixnear-blue: #2878b5;
+  --fixnear-blue-hover: #1f6396;
+  --fixnear-blue-light: #eef6fc;
+
+  --fixnear-amber: #f4b544;
+  --fixnear-amber-hover: #e0a336;
+  --fixnear-amber-light: #fef8ed;
+
+  --fixnear-bg: #f7f9fc;
+  --fixnear-surface: #ffffff;
+
+  --fixnear-text: #172b3a;
+  --fixnear-muted: #526273;
+  --fixnear-border: #dce4ec;
+
+  --fixnear-success: #16803c;
+  --fixnear-success-light: #eaf5ee;
+
+  --fixnear-warning: #b76e00;
+  --fixnear-warning-light: #fef7ed;
+
+  --fixnear-error: #c62828;
+  --fixnear-error-light: #fdf2f2;
+
+  --fixnear-ring: #2878b5;
+
+  /* Baseline aliases */
+  --background: var(--fixnear-bg);
+  --foreground: var(--fixnear-text);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@theme {
+  --color-fixnear-navy: #173b57;
+  --color-fixnear-navy-hover: #122e44;
+  --color-fixnear-navy-light: #f0f4f8;
+
+  --color-fixnear-blue: #2878b5;
+  --color-fixnear-blue-hover: #1f6396;
+  --color-fixnear-blue-light: #eef6fc;
+
+  --color-fixnear-amber: #f4b544;
+  --color-fixnear-amber-hover: #e0a336;
+  --color-fixnear-amber-light: #fef8ed;
+
+  --color-fixnear-bg: #f7f9fc;
+  --color-fixnear-surface: #ffffff;
+
+  --color-fixnear-text: #172b3a;
+  --color-fixnear-muted: #526273;
+  --color-fixnear-border: #dce4ec;
+
+  --color-fixnear-success: #16803c;
+  --color-fixnear-success-light: #eaf5ee;
+
+  --color-fixnear-warning: #b76e00;
+  --color-fixnear-warning-light: #fef7ed;
+
+  --color-fixnear-error: #c62828;
+  --color-fixnear-error-light: #fdf2f2;
+
+  --color-fixnear-ring: #2878b5;
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base resets & typography */
+html {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--fixnear-bg);
+  color: var(--fixnear-text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Selection state */
+::selection {
+  background-color: #2878b5;
+  color: #ffffff;
+}
+
+/* Global focus-visible behavior */
+:focus-visible {
+  outline: 2px solid var(--fixnear-ring);
+  outline-offset: 2px;
+}
+
+/* Content Container utility */
+.fixnear-container {
+  width: 100%;
+  max-width: 80rem; /* 1280px */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .fixnear-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .fixnear-container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Accessibility: Reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
