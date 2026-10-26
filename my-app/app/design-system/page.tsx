@@ -903,7 +903,7 @@ export default function DesignSystemPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {colorPalette.map((c) => (
               <div
-                key={c.hex}
+                key={c.token}
                 className="bg-white rounded-xl border border-fixnear-border overflow-hidden shadow-xs hover:shadow-sm transition-shadow"
               >
                 <div

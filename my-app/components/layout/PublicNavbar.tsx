@@ -101,12 +101,12 @@ export function PublicNavbar({ navItems = defaultNavItems }: PublicNavbarProps) 
 
           {/* Desktop Auth Controls */}
           <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
-            <Link href="/#login">
+            <Link href="/login">
               <Button variant="ghost" size="sm">
                 Log In
               </Button>
             </Link>
-            <Link href="/#signup">
+            <Link href="/signup">
               <Button variant="primary" size="sm">
                 Sign Up
               </Button>
@@ -192,7 +192,7 @@ export function PublicNavbar({ navItems = defaultNavItems }: PublicNavbarProps) 
 
           <div className="mt-5 pt-4 border-t border-fixnear-border flex flex-col gap-2.5">
             <Link
-              href="/#login"
+              href="/login"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full"
             >
@@ -201,7 +201,7 @@ export function PublicNavbar({ navItems = defaultNavItems }: PublicNavbarProps) 
               </Button>
             </Link>
             <Link
-              href="/#signup"
+              href="/signup"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full"
             >

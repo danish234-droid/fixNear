@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useId, useCallback, useEffect } from "react";
+import React, { useState, useId, useCallback } from "react";
 import { DemoProfessional } from "@/data/professionals";
 import { Button, Badge } from "@/components/ui";
 import {
@@ -77,14 +77,16 @@ export function BookingRequestForm({ professional }: BookingRequestFormProps) {
   const [submittedData, setSubmittedData] = useState<SubmittedData | null>(null);
   const [minDate, setMinDate] = useState<string>("");
 
-  // Defer date calculation to client-side mount to adhere to Next.js prerender rules
-  useEffect(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    setMinDate(`${year}-${month}-${day}`);
-  }, []);
+  // Populate minimum allowed date on user interaction to comply with Next.js prerender rules
+  const handleDateFocus = useCallback(() => {
+    if (!minDate) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      setMinDate(`${year}-${month}-${day}`);
+    }
+  }, [minDate]);
 
   const handleInputChange = useCallback(
     (
@@ -395,6 +397,7 @@ export function BookingRequestForm({ professional }: BookingRequestFormProps) {
                     type="date"
                     min={minDate || undefined}
                     value={formData.preferredDate}
+                    onFocus={handleDateFocus}
                     onChange={handleInputChange}
                     aria-invalid={Boolean(errors.preferredDate)}
                     aria-describedby={
