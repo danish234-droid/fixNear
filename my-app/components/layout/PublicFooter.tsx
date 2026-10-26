@@ -15,18 +15,19 @@ export function PublicFooter() {
 
   const navigationLinks = [
     { label: "Home", href: "/" },
-    { label: "Find Professionals", href: "/#professionals" },
-    { label: "Services Directory", href: "/#services" },
+    { label: "Services Directory", href: "/categories" },
+    { label: "Find Professionals", href: "/professionals" },
     { label: "How FixNear Works", href: "/#how-it-works" },
     { label: "Design System", href: "/design-system" },
   ];
 
   const serviceCategories = [
-    { label: "Electrical Repairs & Wiring", href: "/#electrical" },
-    { label: "Plumbing & Leak Detection", href: "/#plumbing" },
-    { label: "AC & HVAC Maintenance", href: "/#hvac" },
-    { label: "Computer & Laptop Repair", href: "/#computer" },
-    { label: "Appliance Troubleshooting", href: "/#appliances" },
+    { label: "Electricians", href: "/professionals?category=electricians" },
+    { label: "Plumbers", href: "/professionals?category=plumbers" },
+    { label: "AC Technicians", href: "/professionals?category=ac-technicians" },
+    { label: "Computer Repair", href: "/professionals?category=computer-repair" },
+    { label: "Appliance Repair", href: "/professionals?category=appliance-repair" },
+    { label: "General Maintenance", href: "/professionals?category=general-maintenance" },
   ];
 
   const supportLinks = [
