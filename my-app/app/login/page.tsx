@@ -2,6 +2,7 @@
 
 import React, { useState, useId, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button, Dialog } from "@/components/ui";
 import {
@@ -14,6 +15,7 @@ import {
   RotateCcw,
   Info,
 } from "@/components/icons/LucideIcons";
+import { loginApi, type AuthUser } from "@/lib/auth";
 
 interface LoginFormState {
   email: string;
@@ -33,6 +35,7 @@ function isValidEmail(email: string): boolean {
 
 export default function LoginPage() {
   const formId = useId();
+  const router = useRouter();
 
   const [formData, setFormData] = useState<LoginFormState>({
     email: "",
@@ -42,8 +45,12 @@ export default function LoginPage() {
 
   const [errors, setErrors] = useState<LoginFormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
-  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
+  const [redirectTarget, setRedirectTarget] = useState<string>("/dashboard/customer");
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,6 +58,7 @@ export default function LoginPage() {
       const nextValue = type === "checkbox" ? checked : value;
 
       setFormData((prev) => ({ ...prev, [name]: nextValue }));
+      setApiError(null);
 
       if (errors[name as keyof LoginFormErrors]) {
         setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -80,29 +88,45 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    // Note: This is a frontend prototype. We do NOT:
-    // - Authenticate against an API
-    // - Store credentials or sessions in cookies/localStorage
-    // - Log passwords to the console
-    setSubmittedEmail(formData.email.trim());
+    setIsLoading(true);
+    setApiError(null);
 
-    // Reset password field
-    setFormData((prev) => ({
-      ...prev,
-      password: "",
-    }));
-    setErrors({});
+    const result = await loginApi(formData.email.trim(), formData.password);
+    setIsLoading(false);
+
+    if (!result.ok) {
+      setApiError(result.error);
+      // Clear password field on failed attempt
+      setFormData((prev) => ({ ...prev, password: "" }));
+      return;
+    }
+
+    // Server-verified user role (never trusted from browser state)
+    const role = result.user.role;
+    let target = "/dashboard/customer";
+    if (role === "PROFESSIONAL") {
+      target = "/dashboard/professional";
+    } else if (role === "ADMIN") {
+      target = "/dashboard/admin";
+    }
+
+    setAuthenticatedUser(result.user);
+    setRedirectTarget(target);
+
+    // Navigate to role-specific dashboard
+    router.push(target);
   };
 
   const handleReset = () => {
-    setSubmittedEmail(null);
+    setAuthenticatedUser(null);
+    setApiError(null);
     setFormData({
       email: "",
       password: "",
@@ -117,9 +141,9 @@ export default function LoginPage() {
       subtitle="Log in to access your FixNear service requests and appointments"
     >
       {/* ─────────────────────────────────────────────
-          SUCCESS FEEDBACK STATE (HONEST PROTOTYPE MESSAGE)
+          SUCCESS REDIRECT STATE
           ───────────────────────────────────────────── */}
-      {submittedEmail ? (
+      {authenticatedUser ? (
         <div
           className="space-y-6"
           role="status"
@@ -132,33 +156,43 @@ export default function LoginPage() {
               <CheckCircle className="w-6 h-6 shrink-0 mt-0.5 text-fixnear-success" />
               <div className="space-y-1.5">
                 <h2 className="text-base font-bold text-fixnear-success leading-snug">
-                  Login Credentials Validated
+                  Login Successful
                 </h2>
                 <p className="text-xs sm:text-sm text-fixnear-success/90 leading-relaxed">
-                  Your form is valid. Login will be available when authentication
-                  is connected.
+                  Welcome back, <strong>{authenticatedUser.name}</strong>. Redirecting you to your{" "}
+                  {authenticatedUser.role === "PROFESSIONAL" ? "professional" : "customer"} dashboard...
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Prototype details notice */}
+          {/* Account Details confirmation */}
           <div className="p-4 rounded-xl bg-fixnear-bg border border-fixnear-border text-xs sm:text-sm space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-fixnear-muted">Attempted Account:</span>
-              <span className="font-semibold text-fixnear-navy">{submittedEmail}</span>
+              <span className="text-fixnear-muted">Authenticated User:</span>
+              <span className="font-semibold text-fixnear-navy">{authenticatedUser.email}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-fixnear-muted">Session Status:</span>
-              <span className="text-fixnear-muted italic">Frontend prototype (no active session)</span>
+              <span className="text-fixnear-muted">Role:</span>
+              <span className="font-semibold text-fixnear-blue">{authenticatedUser.role}</span>
             </div>
-            <p className="text-[11px] text-fixnear-muted pt-2 border-t border-fixnear-border/60 leading-relaxed">
-              When the backend authentication service is connected, this form will issue secure JWT tokens and establish authorized customer and technician sessions.
-            </p>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-fixnear-muted">Session:</span>
+              <span className="text-emerald-700 font-medium">Active (Secure HttpOnly cookie)</span>
+            </div>
           </div>
 
-          {/* Action buttons */}
+          {/* Fallback button if auto-redirect is delayed */}
           <div className="space-y-3 pt-2">
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              onClick={() => router.push(redirectTarget)}
+              className="w-full font-semibold"
+            >
+              Continue to Dashboard
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -167,16 +201,8 @@ export default function LoginPage() {
               className="w-full"
               leftIcon={<RotateCcw className="w-4 h-4" />}
             >
-              Try Another Account
+              Log In as Different User
             </Button>
-            <div className="text-center">
-              <Link
-                href="/professionals"
-                className="text-xs font-semibold text-fixnear-blue hover:text-fixnear-navy underline"
-              >
-                Browse Service Professionals
-              </Link>
-            </div>
           </div>
         </div>
       ) : (
@@ -189,6 +215,18 @@ export default function LoginPage() {
           className="space-y-5"
           aria-label="FixNear login form"
         >
+          {/* Top API Error Banner */}
+          {apiError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-fixnear-error text-xs sm:text-sm flex items-start gap-2.5 animate-fadeIn"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="flex-1 font-medium leading-relaxed">{apiError}</div>
+            </div>
+          )}
+
           {/* 1. EMAIL ADDRESS */}
           <div>
             <label
@@ -209,9 +247,10 @@ export default function LoginPage() {
                 placeholder="name@example.com"
                 value={formData.email}
                 onChange={handleInputChange}
+                disabled={isLoading}
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? `${formId}-email-error` : undefined}
-                className={`w-full h-10 pl-9 pr-3 text-sm text-fixnear-text bg-white rounded-lg border transition-colors focus:outline-none focus:ring-2 ${
+                className={`w-full h-10 pl-9 pr-3 text-sm text-fixnear-text bg-white rounded-lg border transition-colors focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:opacity-70 ${
                   errors.email
                     ? "border-fixnear-error focus:ring-fixnear-error/30"
                     : "border-fixnear-border focus:ring-fixnear-ring focus:border-fixnear-ring"
@@ -262,9 +301,10 @@ export default function LoginPage() {
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleInputChange}
+                disabled={isLoading}
                 aria-invalid={Boolean(errors.password)}
                 aria-describedby={errors.password ? `${formId}-password-error` : undefined}
-                className={`w-full h-10 pl-9 pr-9 text-sm text-fixnear-text bg-white rounded-lg border transition-colors focus:outline-none focus:ring-2 ${
+                className={`w-full h-10 pl-9 pr-9 text-sm text-fixnear-text bg-white rounded-lg border transition-colors focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:opacity-70 ${
                   errors.password
                     ? "border-fixnear-error focus:ring-fixnear-error/30"
                     : "border-fixnear-border focus:ring-fixnear-ring focus:border-fixnear-ring"
@@ -307,9 +347,10 @@ export default function LoginPage() {
                 type="checkbox"
                 checked={formData.rememberMe}
                 onChange={handleInputChange}
+                disabled={isLoading}
                 className="rounded border-fixnear-border text-fixnear-blue focus:ring-fixnear-ring"
               />
-              <span>Remember me on this device (prototype only)</span>
+              <span>Keep me logged in on this browser</span>
             </label>
           </div>
 
@@ -318,9 +359,10 @@ export default function LoginPage() {
             type="submit"
             variant="primary"
             size="lg"
+            disabled={isLoading}
             className="w-full font-semibold shadow-xs"
           >
-            Log In
+            {isLoading ? "Signing in..." : "Log In"}
           </Button>
 
           {/* LINK TO SIGNUP */}
@@ -359,11 +401,11 @@ export default function LoginPage() {
           <div className="p-3 bg-fixnear-bg rounded-lg border border-fixnear-border flex items-start gap-2.5 text-xs text-fixnear-text">
             <Info className="w-4 h-4 text-fixnear-blue shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              Automated password recovery emails will be integrated when the backend authentication and email delivery services are connected in the next phase.
+              Automated password recovery emails will be integrated when the email delivery service is configured.
             </p>
           </div>
           <p className="text-xs text-fixnear-muted leading-relaxed">
-            During this frontend preview, please use the test credentials or create a new prototype profile on the registration screen.
+            If you need immediate access to your account, please log in with your registered credentials or create a new account on the signup screen.
           </p>
         </div>
       </Dialog>

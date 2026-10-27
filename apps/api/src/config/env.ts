@@ -8,6 +8,9 @@ const envSchema = z.object({
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   DATABASE_URL: z.string().optional(),
+  JWT_SECRET: z
+    .string()
+    .min(32, "JWT_SECRET must be at least 32 characters — generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""),
 });
 
 const parsed = envSchema.safeParse(process.env);

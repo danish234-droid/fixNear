@@ -31,6 +31,7 @@ model User {
   passwordHash String
   phone        String?
   role         UserRole @default(CUSTOMER)
+  tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
