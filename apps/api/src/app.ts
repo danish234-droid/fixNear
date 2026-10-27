@@ -11,9 +11,27 @@ export const app = express();
 app.use(helmet());
 
 // Cross-Origin Resource Sharing — specific trusted origin with credentials
+const allowedOrigins = Array.from(
+  new Set([
+    env.WEB_ORIGIN,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    // Next.js falls back to port 3001 when 3000 is already occupied
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+  ])
+);
+
 app.use(
   cors({
-    origin: env.WEB_ORIGIN,
+    origin: (requestOrigin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, or same-origin)
+      if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${requestOrigin} not allowed by CORS policy.`));
+      }
+    },
     credentials: true,
   })
 );
