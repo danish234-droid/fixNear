@@ -44,7 +44,19 @@ router.get("/:id", async (req, res, next) => {
     const { id } = schema.parse(req.params);
     const professional = await prisma.professionalProfile.findUnique({
       where: { id },
-      include: { user: true, services: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            createdAt: true,
+          },
+        },
+        services: true,
+      },
     });
     if (!professional) {
       return res.status(404).json({ error: "Professional not found" });
