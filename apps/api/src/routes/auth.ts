@@ -29,7 +29,7 @@ import { prisma } from "../lib/prisma.js";
 import { Prisma } from "../generated/prisma/client.js";
 import { UserRole } from "../generated/prisma/enums.js";
 import { signAccessToken, ACCESS_TOKEN_TTL_MS } from "../lib/jwt.js";
-import { requireAuth } from "../middleware/requireAuth.js";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/index.js";
 import { env } from "../config/env.js";
 
 const router = Router();
@@ -334,7 +334,7 @@ router.post(
         });
       }
 
-      const userId = res.locals.userId;
+      const userId = req.user?.id ?? res.locals.userId;
 
       // Increment tokenVersion — this invalidates all previously issued JWTs
       // for this user without maintaining a token revocation list.
@@ -367,9 +367,9 @@ router.post(
 router.get(
   "/me",
   requireAuth,
-  async (_req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = res.locals.userId;
+      const userId = req.user?.id ?? res.locals.userId;
 
       // Fetch fresh user data — do not rely on JWT payload for display data.
       const user = await prisma.user.findUnique({

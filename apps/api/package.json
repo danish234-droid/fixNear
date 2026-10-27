@@ -14,7 +14,8 @@
     "prisma:migrate:status": "prisma migrate status",
     "test:register": "tsx test_register.ts",
     "test:auth": "tsx test_auth.ts",
-    "test": "tsx test_auth.ts"
+    "test:middleware": "tsx test_middleware.ts",
+    "test": "tsx test_middleware.ts"
   },
   "keywords": [],
   "author": "",
