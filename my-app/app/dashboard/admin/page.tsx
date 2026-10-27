@@ -1,5 +1,8 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout";
 import { DashboardStatCard } from "@/components/dashboard";
 import {
@@ -11,11 +14,13 @@ import {
   EmptyState,
   Badge,
 } from "@/components/ui";
-
-export const metadata = {
-  title: "Admin Console — FixNear",
-  description: "Platform-wide governance and oversight for FixNear administrators.",
-};
+import {
+  getCurrentUserApi,
+  getAdminOverviewApi,
+  getAdminUsersApi,
+  AuthUser,
+  AdminOverview,
+} from "@/lib/auth";
 
 /* ── Icon helpers ───────────────────────────────────────────────── */
 function UsersIcon() {
@@ -42,51 +47,89 @@ function BookingsIcon() {
     </svg>
   );
 }
-function PendingIcon() {
+function LayersIcon() {
   return (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-full h-full" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
     </svg>
   );
 }
 
-/* ── Placeholder future nav items ───────────────────────────────── */
-interface AdminNavCard {
-  title: string;
-  description: string;
-  href: string | null;  // null = future placeholder
-  badge?: string;
-}
-
-const ADMIN_NAV_CARDS: AdminNavCard[] = [
-  {
-    title: "Users (Customers)",
-    description: "View and manage registered customer accounts.",
-    href: null,
-    badge: "Future",
-  },
-  {
-    title: "Professionals",
-    description: "Review, approve, and manage registered professionals.",
-    href: "/professionals",
-    badge: "Browse",
-  },
-  {
-    title: "Booking Requests",
-    description: "View all platform booking requests across all users.",
-    href: null,
-    badge: "Future",
-  },
-  {
-    title: "Settings",
-    description: "Platform configuration and feature flags.",
-    href: null,
-    badge: "Future",
-  },
-];
-
 export default function AdminDashboardPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [users, setUsers] = useState<AuthUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadAdminDashboard() {
+      try {
+        const currentUser = await getCurrentUserApi();
+        if (!mounted) return;
+
+        if (!currentUser) {
+          router.push("/login?redirect=/dashboard/admin");
+          return;
+        }
+
+        if (currentUser.role !== "ADMIN") {
+          // Access denied - redirect to customer or professional dashboard
+          if (currentUser.role === "PROFESSIONAL") {
+            router.push("/dashboard/professional");
+          } else {
+            router.push("/dashboard/customer");
+          }
+          return;
+        }
+
+        setUser(currentUser);
+
+        const [ovRes, usersRes] = await Promise.all([
+          getAdminOverviewApi(),
+          getAdminUsersApi(),
+        ]);
+
+        if (!mounted) return;
+
+        if (ovRes.ok) {
+          setOverview(ovRes.data);
+        } else {
+          setError(ovRes.error);
+        }
+
+        if (usersRes.ok) {
+          setUsers(usersRes.data);
+        }
+      } catch {
+        if (mounted) setError("Failed to load admin console.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadAdminDashboard();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-fixnear-bg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-fixnear-muted">
+          <div className="w-8 h-8 border-3 border-fixnear-blue border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium">Authenticating admin console...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <DashboardShell
       role="admin"
@@ -95,207 +138,184 @@ export default function AdminDashboardPage() {
       activeHref="/dashboard/admin"
     >
       <div className="space-y-8">
-
-        {/* ── Security Disclaimer ────────────────────────────────────── */}
-        <div
-          role="note"
-          aria-label="Security notice"
-          className="flex items-start gap-3 p-4 rounded-xl bg-[#FDF2F2] border border-[#F9CACA] text-fixnear-error text-xs sm:text-sm"
-        >
-          <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <span>
-            <strong>Development preview — no access control enforced.</strong> Visiting
-            this URL does not grant administrative privileges. Real admin authorisation
-            will be implemented via backend middleware. All stats show zeros; no real
-            platform data is loaded.
-          </span>
-        </div>
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 p-4 rounded-xl bg-[#FDF2F2] border border-[#F9CACA] text-fixnear-error text-xs sm:text-sm"
+          >
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* ── Summary Stat Cards ─────────────────────────────────────── */}
         <section aria-labelledby="admin-stats-heading">
-          <h2 id="admin-stats-heading" className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4">
+          <h2
+            id="admin-stats-heading"
+            className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4"
+          >
             Platform Overview
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <DashboardStatCard
               label="Registered Customers"
-              value={0}
-              sub="total"
+              value={overview?.totalCustomers ?? 0}
+              sub={`of ${overview?.totalUsers ?? 0} total users`}
               accent="blue"
               icon={<UsersIcon />}
             />
             <DashboardStatCard
               label="Registered Professionals"
-              value={0}
-              sub="total"
+              value={overview?.totalProfessionals ?? 0}
+              sub="active service providers"
               accent="navy"
               icon={<ToolsIcon />}
             />
             <DashboardStatCard
               label="Booking Requests"
-              value={0}
+              value={overview?.totalBookings ?? 0}
               sub="total platform-wide"
               accent="success"
               icon={<BookingsIcon />}
             />
             <DashboardStatCard
-              label="Pending Approvals"
-              value={0}
-              sub="professionals awaiting review"
+              label="Service Categories"
+              value={overview?.totalCategories ?? 0}
+              sub="active categories"
               accent="warning"
-              icon={<PendingIcon />}
+              icon={<LayersIcon />}
             />
           </div>
         </section>
 
-        {/* ── Recent Activity ────────────────────────────────────────── */}
-        <section aria-labelledby="admin-activity-heading" id="bookings">
+        {/* ── User Accounts Table ────────────────────────────────────── */}
+        <section aria-labelledby="admin-users-heading" id="customers">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <CardTitle>Recent Platform Activity</CardTitle>
+                  <CardTitle>Platform Accounts</CardTitle>
                   <CardDescription>
-                    Latest registrations and booking requests across the platform.
+                    All registered users with roles and registration dates.
                   </CardDescription>
                 </div>
-                <Badge variant="neutral" size="sm">0 events</Badge>
+                <Badge variant="info" size="sm">
+                  {users.length} {users.length === 1 ? "user" : "users"}
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent className="pt-2">
-              <EmptyState
-                title="No activity data yet"
-                description="Platform-wide activity will appear here once the authentication and booking backends are connected and real users start registering and making requests."
-                icon={
-                  <svg className="w-6 h-6 text-fixnear-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                }
-              />
+            <CardContent className="pt-0">
+              {users.length === 0 ? (
+                <EmptyState
+                  title="No users found"
+                  description="No registered user records returned by the administration API."
+                  icon={<UsersIcon />}
+                />
+              ) : (
+                <div className="overflow-x-auto -mx-5 sm:-mx-6">
+                  <table className="w-full text-sm min-w-[560px]">
+                    <thead>
+                      <tr className="border-b border-fixnear-border bg-fixnear-bg/50 text-xs text-fixnear-muted uppercase tracking-wide">
+                        <th scope="col" className="text-left px-5 sm:px-6 py-3 font-semibold">User</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Email</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Role</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Phone / Profile</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Joined</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-fixnear-border/60">
+                      {users.map((u) => (
+                        <tr key={u.id} className="hover:bg-fixnear-bg/40 transition-colors">
+                          <td className="px-5 sm:px-6 py-3.5 font-medium text-fixnear-navy whitespace-nowrap">
+                            {u.name}
+                          </td>
+                          <td className="px-4 py-3.5 text-fixnear-text text-xs whitespace-nowrap font-mono">
+                            {u.email}
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <Badge
+                              variant={
+                                u.role === "ADMIN"
+                                  ? "error"
+                                  : u.role === "PROFESSIONAL"
+                                  ? "info"
+                                  : "success"
+                              }
+                              size="sm"
+                              className="font-semibold"
+                            >
+                              {u.role}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3.5 text-fixnear-muted text-xs">
+                            {u.professionalProfile
+                              ? `${u.professionalProfile.businessName || "Profile"} (${u.professionalProfile.city})`
+                              : u.phone || "—"}
+                          </td>
+                          <td className="px-4 py-3.5 text-fixnear-muted text-xs whitespace-nowrap">
+                            {new Date(u.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </section>
 
-        {/* ── Admin Navigation Cards ─────────────────────────────────── */}
-        <section aria-labelledby="admin-nav-heading" id="customers">
-          <h2 id="admin-nav-heading" className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4">
-            Management Areas
+        {/* ── Quick Admin Links ──────────────────────────────────────── */}
+        <section aria-labelledby="admin-links-heading">
+          <h2
+            id="admin-links-heading"
+            className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4"
+          >
+            Management Portals
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {ADMIN_NAV_CARDS.map(({ title, description, href, badge }) => (
-              <Card key={title} interactive={!!href} className={!href ? "opacity-70" : ""}>
-                <CardContent className="flex items-center gap-4 py-5">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="font-semibold text-fixnear-navy text-sm">{title}</p>
-                      {badge && (
-                        <Badge
-                          variant={href ? "info" : "neutral"}
-                          size="sm"
-                        >
-                          {badge}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-fixnear-muted">{description}</p>
-                  </div>
-                  {href ? (
-                    <Link
-                      href={href}
-                      className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-fixnear-blue hover:text-fixnear-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring rounded px-2 py-1 transition-colors"
-                    >
-                      Open
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  ) : (
-                    <span className="shrink-0 text-xs text-fixnear-muted font-medium italic">
-                      Coming soon
-                    </span>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+            <Card interactive>
+              <CardContent className="flex items-center gap-4 py-5">
+                <div className="w-11 h-11 rounded-full bg-[#EEF6FC] flex items-center justify-center shrink-0 ring-4 ring-fixnear-blue/10">
+                  <ToolsIcon />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-fixnear-navy text-sm">Directory of Professionals</p>
+                  <p className="text-xs text-fixnear-muted mt-0.5">Explore active trade professional listings</p>
+                </div>
+                <Link
+                  href="/professionals"
+                  className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-fixnear-blue hover:text-fixnear-blue-hover rounded px-2 py-1 transition-colors"
+                >
+                  View
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </CardContent>
+            </Card>
+
+            <Card interactive>
+              <CardContent className="flex items-center gap-4 py-5">
+                <div className="w-11 h-11 rounded-full bg-[#EAF5EE] flex items-center justify-center shrink-0 ring-4 ring-fixnear-success/10">
+                  <LayersIcon />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-fixnear-navy text-sm">Service Categories</p>
+                  <p className="text-xs text-fixnear-muted mt-0.5">Explore platform service taxonomy</p>
+                </div>
+                <Link
+                  href="/categories"
+                  className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-fixnear-blue hover:text-fixnear-blue-hover rounded px-2 py-1 transition-colors"
+                >
+                  View
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
         </section>
-
-        {/* ── Pending Approvals placeholder ─────────────────────────── */}
-        <section aria-labelledby="admin-approvals-heading" id="technicians">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Professional Approvals</CardTitle>
-              <CardDescription>
-                Professionals who have registered and are awaiting account review.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EmptyState
-                title="No pending approvals"
-                description="When professionals register on the platform, their accounts will appear here pending admin review. Approval workflows will be implemented in a future backend module."
-                icon={
-                  <svg className="w-6 h-6 text-fixnear-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                }
-              />
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* ── Reports placeholder ────────────────────────────────────── */}
-        <section aria-labelledby="admin-reports-heading" id="reports">
-          <Card>
-            <CardHeader>
-              <CardTitle>Reports</CardTitle>
-              <CardDescription>
-                Platform analytics and reporting — available after backend integration.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EmptyState
-                title="Reports not yet available"
-                description="Analytics, booking reports, and user metrics will be accessible here once the platform backend and data pipelines are connected."
-                icon={
-                  <svg className="w-6 h-6 text-fixnear-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                }
-              />
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* ── Settings placeholder ───────────────────────────────────── */}
-        <section aria-labelledby="admin-settings-heading" id="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Settings</CardTitle>
-              <CardDescription>
-                Feature flags, configuration, and system settings — future implementation.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EmptyState
-                title="Settings not yet available"
-                description="Platform configuration options will be implemented in a future module alongside the backend admin API."
-                icon={
-                  <svg className="w-6 h-6 text-fixnear-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                  </svg>
-                }
-              />
-            </CardContent>
-          </Card>
-        </section>
-
       </div>
     </DashboardShell>
   );

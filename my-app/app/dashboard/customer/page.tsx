@@ -1,5 +1,8 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout";
 import { DashboardStatCard } from "@/components/dashboard";
 import {
@@ -10,14 +13,17 @@ import {
   CardContent,
   EmptyState,
   Badge,
+  StatusBadge,
+  BookingStatus,
 } from "@/components/ui";
+import {
+  getCurrentUserApi,
+  getCustomerBookingsApi,
+  AuthUser,
+  BookingItem,
+} from "@/lib/auth";
 
-export const metadata = {
-  title: "Customer Dashboard — FixNear",
-  description: "Manage your local service booking requests on FixNear.",
-};
-
-/* ── Icon helpers (inline SVGs to avoid extra deps) ─────────────── */
+/* ── Icon helpers ───────────────────────────────────────────────── */
 function BookingIcon() {
   return (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-full h-full" aria-hidden="true">
@@ -51,56 +57,136 @@ function SearchIcon() {
   );
 }
 
+function mapStatusToBadge(status: string): BookingStatus {
+  switch (status) {
+    case "PENDING":
+      return "pending";
+    case "ACCEPTED":
+      return "confirmed";
+    case "IN_PROGRESS":
+      return "in-progress";
+    case "COMPLETED":
+      return "completed";
+    case "CANCELLED":
+      return "cancelled";
+    case "REJECTED":
+      return "rejected";
+    default:
+      return "pending";
+  }
+}
+
 export default function CustomerDashboardPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadDashboard() {
+      try {
+        const currentUser = await getCurrentUserApi();
+        if (!mounted) return;
+
+        if (!currentUser) {
+          router.push("/login?redirect=/dashboard/customer");
+          return;
+        }
+
+        if (currentUser.role !== "CUSTOMER" && currentUser.role !== "ADMIN") {
+          if (currentUser.role === "PROFESSIONAL") {
+            router.push("/dashboard/professional");
+          } else {
+            router.push("/dashboard/admin");
+          }
+          return;
+        }
+
+        setUser(currentUser);
+
+        const res = await getCustomerBookingsApi(currentUser.id);
+        if (!mounted) return;
+
+        if (res.ok) {
+          setBookings(res.data);
+        } else {
+          setError(res.error);
+        }
+      } catch {
+        if (mounted) setError("Failed to load customer dashboard.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-fixnear-bg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-fixnear-muted">
+          <div className="w-8 h-8 border-3 border-fixnear-blue border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium">Loading customer dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const totalBookings = bookings.length;
+  const pendingBookings = bookings.filter((b) => b.status === "PENDING").length;
+  const completedBookings = bookings.filter((b) => b.status === "COMPLETED").length;
+
   return (
     <DashboardShell
       role="customer"
-      title="Welcome back"
+      title={`Welcome back, ${user?.name || "Customer"}`}
       subtitle="Here's what's happening with your service requests."
       activeHref="/dashboard/customer"
     >
       <div className="space-y-8">
-
-        {/* ── Dev Notice ────────────────────────────────────────────── */}
-        <div
-          role="note"
-          aria-label="Development notice"
-          className="flex items-start gap-3 p-4 rounded-xl bg-[#FEF8ED] border border-[#FAD998] text-[#945600] text-xs sm:text-sm"
-        >
-          <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>
-            <strong>Development preview.</strong> Role-based authentication is not yet
-            connected. This page is a UI prototype — no real bookings or user data are
-            loaded.
-          </span>
-        </div>
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 p-4 rounded-xl bg-[#FDF2F2] border border-[#F9CACA] text-fixnear-error text-xs sm:text-sm"
+          >
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* ── Summary Stat Cards ─────────────────────────────────────── */}
         <section aria-labelledby="customer-stats-heading">
-          <h2 id="customer-stats-heading" className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4">
+          <h2
+            id="customer-stats-heading"
+            className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4"
+          >
             Your Activity
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <DashboardStatCard
               label="Total Booking Requests"
-              value={0}
+              value={totalBookings}
               sub="all time"
               accent="blue"
               icon={<BookingIcon />}
             />
             <DashboardStatCard
               label="Pending Requests"
-              value={0}
-              sub="awaiting response"
+              value={pendingBookings}
+              sub="awaiting pro response"
               accent="warning"
               icon={<ClockIcon />}
             />
             <DashboardStatCard
               label="Completed Bookings"
-              value={0}
+              value={completedBookings}
               sub="successfully completed"
               accent="success"
               icon={<CheckIcon />}
@@ -110,7 +196,10 @@ export default function CustomerDashboardPage() {
 
         {/* ── Quick Actions ──────────────────────────────────────────── */}
         <section aria-labelledby="customer-actions-heading">
-          <h2 id="customer-actions-heading" className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4">
+          <h2
+            id="customer-actions-heading"
+            className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4"
+          >
             Quick Actions
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -170,63 +259,79 @@ export default function CustomerDashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Recent Booking Requests</CardTitle>
-                  <CardDescription>Your latest service requests will appear here.</CardDescription>
+                  <CardDescription>
+                    Real bookings requested by your account.
+                  </CardDescription>
                 </div>
-                <Badge variant="neutral" size="sm">0 requests</Badge>
+                <Badge variant="info" size="sm">
+                  {bookings.length} {bookings.length === 1 ? "request" : "requests"}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="pt-2">
-              <EmptyState
-                title="No booking requests yet"
-                description="Once you send a booking request to a professional, it will appear here. Booking data will be loaded from the backend once authentication is connected."
-                icon={
-                  <svg className="w-6 h-6 text-fixnear-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                }
-                action={
-                  <Link
-                    href="/professionals"
-                    className="inline-flex items-center justify-center font-medium leading-none select-none transition-colors duration-150 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring focus-visible:ring-offset-2 bg-fixnear-blue text-white hover:bg-fixnear-blue-hover active:bg-[#1A5785] border border-transparent shadow-xs h-8 px-3 text-xs gap-1.5 rounded-md"
-                  >
-                    Find a Professional
-                  </Link>
-                }
-              />
+              {bookings.length === 0 ? (
+                <EmptyState
+                  title="No booking requests yet"
+                  description="When you request a service from a professional, your live booking details will appear here."
+                  icon={
+                    <svg className="w-6 h-6 text-fixnear-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  }
+                  action={
+                    <Link
+                      href="/professionals"
+                      className="inline-flex items-center justify-center font-medium leading-none select-none transition-colors duration-150 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring focus-visible:ring-offset-2 bg-fixnear-blue text-white hover:bg-fixnear-blue-hover active:bg-[#1A5785] border border-transparent shadow-xs h-8 px-3 text-xs gap-1.5 rounded-md"
+                    >
+                      Find a Professional
+                    </Link>
+                  }
+                />
+              ) : (
+                <div className="overflow-x-auto -mx-5 sm:-mx-6">
+                  <table className="w-full text-sm min-w-[560px]">
+                    <thead>
+                      <tr className="border-b border-fixnear-border bg-fixnear-bg/50 text-xs text-fixnear-muted uppercase tracking-wide">
+                        <th scope="col" className="text-left px-5 sm:px-6 py-3 font-semibold">Ref</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Service</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Address</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Created</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-fixnear-border/60">
+                      {bookings.map((b) => (
+                        <tr key={b.id} className="hover:bg-fixnear-bg/40 transition-colors">
+                          <td className="px-5 sm:px-6 py-3.5 font-mono text-xs text-fixnear-muted whitespace-nowrap">
+                            {b.id.slice(0, 8)}...
+                          </td>
+                          <td className="px-4 py-3.5 font-medium text-fixnear-navy">
+                            {b.professionalService?.title || "Professional Service"}
+                            {b.professionalService?.serviceCategory?.name && (
+                              <span className="block text-xs text-fixnear-muted font-normal">
+                                {b.professionalService.serviceCategory.name}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 text-fixnear-text text-xs">
+                            {b.address}
+                          </td>
+                          <td className="px-4 py-3.5 text-fixnear-muted text-xs whitespace-nowrap">
+                            {new Date(b.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <StatusBadge status={mapStatusToBadge(b.status)} size="sm" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </section>
-
-        {/* ── Help & Info ────────────────────────────────────────────── */}
-        <section aria-labelledby="how-it-works-heading">
-          <Card>
-            <CardHeader>
-              <CardTitle>How FixNear works</CardTitle>
-              <CardDescription>Get started in three easy steps.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ol className="space-y-4 text-sm text-fixnear-text">
-                {[
-                  { step: 1, title: "Browse professionals", desc: "Search by category or location to find vetted local service providers." },
-                  { step: 2, title: "Send a booking request", desc: "Fill in your requirements, preferred date, and contact details." },
-                  { step: 3, title: "Get the job done", desc: "The professional confirms your request and arrives at the scheduled time." },
-                ].map(({ step, title, desc }) => (
-                  <li key={step} className="flex items-start gap-4">
-                    <span className="w-7 h-7 rounded-full bg-fixnear-blue text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                      {step}
-                    </span>
-                    <div>
-                      <p className="font-semibold text-fixnear-navy">{title}</p>
-                      <p className="text-xs text-fixnear-muted mt-0.5">{desc}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
-        </section>
-
       </div>
     </DashboardShell>
   );

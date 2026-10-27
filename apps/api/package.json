@@ -15,7 +15,9 @@
     "test:register": "tsx test_register.ts",
     "test:auth": "tsx test_auth.ts",
     "test:middleware": "tsx test_middleware.ts",
-    "test": "tsx test_middleware.ts"
+    "test:authz": "tsx test_authorization.ts",
+    "test:all": "tsx test_register.ts && tsx test_auth.ts && tsx test_middleware.ts && tsx test_authorization.ts",
+    "test": "tsx test_authorization.ts"
   },
   "keywords": [],
   "author": "",

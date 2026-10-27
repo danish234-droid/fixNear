@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
+import { logoutApi } from "@/lib/auth";
 import {
   DashboardRole,
   DashboardNavItem,
@@ -104,12 +105,24 @@ export function DashboardShell({
   children,
 }: DashboardShellProps) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const router = useRouter();
   const pathname = usePathname();
   const config = roleConfig[role];
   const items = customNavItems || config.navItems;
 
   const resolvedTitle = title || config.title;
   const resolvedSubtitle = subtitle || config.subtitle;
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logoutApi();
+    } finally {
+      setIsLoggingOut(false);
+      router.push("/login");
+    }
+  };
 
   // Close mobile drawer on Escape key
   useEffect(() => {
@@ -200,23 +213,36 @@ export function DashboardShell({
         })}
       </nav>
 
-      {/* Sidebar Footer */}
-      <div className="p-4 border-t border-fixnear-border bg-fixnear-bg/60">
-        {/* Dev notice */}
-        <div className="text-[11px] text-fixnear-muted leading-relaxed mb-3">
-          <p className="font-semibold text-fixnear-navy">Development Preview</p>
-          <p className="mt-0.5">
-            Role-based access control is not yet connected. These pages are UI
-            previews only.
-          </p>
-        </div>
-        <div className="pt-3 border-t border-fixnear-border/60">
-          <Link
-            href="/"
-            className="text-xs text-fixnear-blue hover:text-fixnear-blue-hover font-medium flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring rounded min-h-[36px]"
+      <div className="p-4 border-t border-fixnear-border">
+        <div className="flex flex-col gap-2 pt-2">
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="w-full text-xs text-red-600 hover:text-red-700 hover:bg-red-50/80 font-medium flex items-center gap-2 p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
           >
             <svg
-              className="w-3.5 h-3.5 shrink-0"
+              className="w-4 h-4 shrink-0 text-red-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
+            <span>{isLoggingOut ? "Signing out..." : "Sign Out"}</span>
+          </button>
+          <Link
+            href="/"
+            className="text-xs text-fixnear-muted hover:text-fixnear-navy font-medium flex items-center gap-2 p-2 rounded-lg transition-colors"
+          >
+            <svg
+              className="w-4 h-4 shrink-0 text-fixnear-muted"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -229,7 +255,7 @@ export function DashboardShell({
                 d="M10 19l-7-7m0 0l7-7m-7 7h18"
               />
             </svg>
-            <span>Exit to Public Website</span>
+            <span>Back to Public Website</span>
           </Link>
         </div>
       </div>
@@ -307,6 +333,15 @@ export function DashboardShell({
               size="sm"
               aria-label={userName ? `${userName} profile` : "User profile"}
             />
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              aria-label="Sign out of your account"
+            >
+              {isLoggingOut ? "..." : "Sign Out"}
+            </button>
           </div>
         </header>
 

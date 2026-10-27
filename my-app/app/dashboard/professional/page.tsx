@@ -1,5 +1,8 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout";
 import { DashboardStatCard } from "@/components/dashboard";
 import {
@@ -10,12 +13,17 @@ import {
   CardContent,
   EmptyState,
   Badge,
+  Button,
+  StatusBadge,
+  BookingStatus,
 } from "@/components/ui";
-
-export const metadata = {
-  title: "Professional Dashboard — FixNear",
-  description: "Manage incoming booking requests and your professional profile on FixNear.",
-};
+import {
+  getCurrentUserApi,
+  getProfessionalBookingsApi,
+  updateBookingStatusApi,
+  AuthUser,
+  BookingItem,
+} from "@/lib/auth";
 
 /* ── Icon helpers ───────────────────────────────────────────────── */
 function InboxIcon() {
@@ -43,134 +51,185 @@ function BriefcaseIcon() {
   );
 }
 
-/* ── Sample demo row (clearly labelled as demo) ─────────────────── */
-interface DemoBooking {
-  id: string;
-  customer: string;
-  service: string;
-  date: string;
-  status: "pending" | "confirmed";
+function mapStatusToBadge(status: string): BookingStatus {
+  switch (status) {
+    case "PENDING":
+      return "pending";
+    case "ACCEPTED":
+      return "confirmed";
+    case "IN_PROGRESS":
+      return "in-progress";
+    case "COMPLETED":
+      return "completed";
+    case "CANCELLED":
+      return "cancelled";
+    case "REJECTED":
+      return "rejected";
+    default:
+      return "pending";
+  }
 }
 
-const DEMO_BOOKINGS: DemoBooking[] = [
-  { id: "DEMO-001", customer: "Jane D.", service: "Plumbing — Pipe Repair", date: "Demo date", status: "pending" },
-  { id: "DEMO-002", customer: "Mark S.", service: "Electrical — Socket Install", date: "Demo date", status: "confirmed" },
-];
-
 export default function ProfessionalDashboardPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  const fetchBookings = useCallback(async () => {
+    const res = await getProfessionalBookingsApi();
+    if (res.ok) {
+      setBookings(res.data);
+    } else {
+      setError(res.error);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadDashboard() {
+      try {
+        const currentUser = await getCurrentUserApi();
+        if (!mounted) return;
+
+        if (!currentUser) {
+          router.push("/login?redirect=/dashboard/professional");
+          return;
+        }
+
+        if (currentUser.role !== "PROFESSIONAL" && currentUser.role !== "ADMIN") {
+          if (currentUser.role === "CUSTOMER") {
+            router.push("/dashboard/customer");
+          } else {
+            router.push("/dashboard/admin");
+          }
+          return;
+        }
+
+        setUser(currentUser);
+        await fetchBookings();
+      } catch {
+        if (mounted) setError("Failed to load professional dashboard.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router, fetchBookings]);
+
+  const handleStatusUpdate = async (
+    bookingId: string,
+    newStatus: "ACCEPTED" | "REJECTED" | "COMPLETED"
+  ) => {
+    setActionInProgress(bookingId);
+    try {
+      const res = await updateBookingStatusApi(bookingId, newStatus);
+      if (res.ok) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+        );
+      } else {
+        alert(res.error || "Failed to update booking status.");
+      }
+    } catch {
+      alert("Error contacting the server.");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-fixnear-bg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-fixnear-muted">
+          <div className="w-8 h-8 border-3 border-fixnear-blue border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium">Loading professional portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const incomingTotal = bookings.length;
+  const pendingCount = bookings.filter((b) => b.status === "PENDING").length;
+  const completedCount = bookings.filter((b) => b.status === "COMPLETED").length;
+
   return (
     <DashboardShell
       role="professional"
-      title="Professional Portal"
-      subtitle="Manage your incoming booking requests and service profile."
+      title={user?.professionalProfile?.businessName || `Professional Portal — ${user?.name || ""}`}
+      subtitle="Manage incoming client requests and monitor your active bookings."
       activeHref="/dashboard/professional"
     >
       <div className="space-y-8">
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 p-4 rounded-xl bg-[#FDF2F2] border border-[#F9CACA] text-fixnear-error text-xs sm:text-sm"
+          >
+            <span>{error}</span>
+          </div>
+        )}
 
-        {/* ── Dev Notice ────────────────────────────────────────────── */}
-        <div
-          role="note"
-          aria-label="Development notice"
-          className="flex items-start gap-3 p-4 rounded-xl bg-[#FEF8ED] border border-[#FAD998] text-[#945600] text-xs sm:text-sm"
-        >
-          <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>
-            <strong>Development preview.</strong> Authentication is not yet connected.
-            Stats show zeros and the booking rows below are clearly labelled demo data.
-            Real booking requests will appear here after backend integration.
-          </span>
+        {/* ── Profile Snapshot Card ──────────────────────────────────── */}
+        <div className="p-4 rounded-xl bg-white border border-fixnear-border shadow-xs flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[#EEF6FC] text-fixnear-blue flex items-center justify-center font-bold text-lg">
+              {user?.name?.[0]?.toUpperCase() || "P"}
+            </div>
+            <div>
+              <p className="font-bold text-fixnear-navy text-sm sm:text-base">
+                {user?.professionalProfile?.businessName || user?.name}
+              </p>
+              <p className="text-xs text-fixnear-muted">
+                {user?.professionalProfile?.city || "City Unspecified"} • {user?.email}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="success" size="sm">
+              Active Professional
+            </Badge>
+          </div>
         </div>
 
         {/* ── Summary Stat Cards ─────────────────────────────────────── */}
         <section aria-labelledby="pro-stats-heading">
-          <h2 id="pro-stats-heading" className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4">
+          <h2
+            id="pro-stats-heading"
+            className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4"
+          >
             Your Activity
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <DashboardStatCard
               label="Incoming Requests"
-              value={0}
-              sub="new this week"
+              value={incomingTotal}
+              sub="total received"
               accent="blue"
               icon={<InboxIcon />}
             />
             <DashboardStatCard
               label="Pending Requests"
-              value={0}
+              value={pendingCount}
               sub="awaiting your response"
               accent="warning"
               icon={<ClockIcon />}
             />
             <DashboardStatCard
               label="Completed Jobs"
-              value={0}
-              sub="all time"
+              value={completedCount}
+              sub="completed bookings"
               accent="success"
               icon={<BriefcaseIcon />}
             />
-          </div>
-        </section>
-
-        {/* ── Quick Actions ──────────────────────────────────────────── */}
-        <section aria-labelledby="pro-actions-heading">
-          <h2 id="pro-actions-heading" className="text-sm font-semibold text-fixnear-muted uppercase tracking-wider mb-4">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* View / Edit public profile — links to the real profile page */}
-            <Card interactive>
-              <CardContent className="flex items-center gap-4 py-5">
-                <div className="w-11 h-11 rounded-full bg-[#EEF6FC] flex items-center justify-center shrink-0 ring-4 ring-fixnear-blue/10">
-                  <svg className="w-5 h-5 text-fixnear-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-fixnear-navy text-sm">My Public Profile</p>
-                  <p className="text-xs text-fixnear-muted mt-0.5">View how customers see your profile</p>
-                </div>
-                <Link
-                  href="/professionals/demo-professional-1"
-                  className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-fixnear-blue hover:text-fixnear-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring rounded px-2 py-1 transition-colors"
-                  aria-label="View public profile (demo)"
-                >
-                  View
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Browse categories */}
-            <Card interactive>
-              <CardContent className="flex items-center gap-4 py-5">
-                <div className="w-11 h-11 rounded-full bg-[#EAF5EE] flex items-center justify-center shrink-0 ring-4 ring-fixnear-success/10">
-                  <svg className="w-5 h-5 text-fixnear-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-fixnear-navy text-sm">All Service Categories</p>
-                  <p className="text-xs text-fixnear-muted mt-0.5">See what services customers are browsing</p>
-                </div>
-                <Link
-                  href="/categories"
-                  className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-fixnear-blue hover:text-fixnear-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring rounded px-2 py-1 transition-colors"
-                  aria-label="Browse service categories"
-                >
-                  Browse
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </CardContent>
-            </Card>
           </div>
         </section>
 
@@ -180,93 +239,113 @@ export default function ProfessionalDashboardPage() {
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <CardTitle>Booking Requests</CardTitle>
+                  <CardTitle>Incoming Booking Requests</CardTitle>
                   <CardDescription>
-                    Incoming requests from customers. Real data loads after backend integration.
+                    Client requests submitted for your services. Accept or reject pending jobs below.
                   </CardDescription>
                 </div>
-                <Badge variant="amber" size="sm">Demo data below</Badge>
+                <Badge variant="info" size="sm">
+                  {bookings.length} {bookings.length === 1 ? "job" : "jobs"}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              {/* Demo table — clearly labelled */}
-              <div className="mb-4 p-3 bg-[#FEF8ED] border border-[#FAD998] rounded-lg text-[11px] text-[#945600] font-medium">
-                ⚠ The rows below are demo layout samples only. They do not represent real customers or bookings.
-              </div>
-              <div className="overflow-x-auto -mx-5 sm:-mx-6">
-                <table className="w-full text-sm min-w-[520px]">
-                  <thead>
-                    <tr className="border-b border-fixnear-border bg-fixnear-bg/50 text-xs text-fixnear-muted uppercase tracking-wide">
-                      <th scope="col" className="text-left px-5 sm:px-6 py-3 font-semibold">Ref</th>
-                      <th scope="col" className="text-left px-4 py-3 font-semibold">Customer</th>
-                      <th scope="col" className="text-left px-4 py-3 font-semibold">Service</th>
-                      <th scope="col" className="text-left px-4 py-3 font-semibold">Date</th>
-                      <th scope="col" className="text-left px-4 py-3 font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-fixnear-border/60">
-                    {DEMO_BOOKINGS.map((b) => (
-                      <tr key={b.id} className="hover:bg-fixnear-bg/40 transition-colors">
-                        <td className="px-5 sm:px-6 py-3.5 font-mono text-xs text-fixnear-muted whitespace-nowrap">{b.id}</td>
-                        <td className="px-4 py-3.5 font-medium text-fixnear-navy whitespace-nowrap">{b.customer}</td>
-                        <td className="px-4 py-3.5 text-fixnear-text">{b.service}</td>
-                        <td className="px-4 py-3.5 text-fixnear-muted text-xs whitespace-nowrap">{b.date}</td>
-                        <td className="px-4 py-3.5">
-                          <Badge
-                            variant={b.status === "confirmed" ? "info" : "warning"}
-                            size="sm"
-                          >
-                            {b.status === "confirmed" ? "Confirmed" : "Pending"}
-                          </Badge>
-                        </td>
+              {bookings.length === 0 ? (
+                <div className="py-6">
+                  <EmptyState
+                    title="No incoming bookings yet"
+                    description="When customers book your services, their requests will appear here with contact details and action buttons."
+                    icon={
+                      <svg className="w-6 h-6 text-fixnear-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                      </svg>
+                    }
+                  />
+                </div>
+              ) : (
+                <div className="overflow-x-auto -mx-5 sm:-mx-6">
+                  <table className="w-full text-sm min-w-[640px]">
+                    <thead>
+                      <tr className="border-b border-fixnear-border bg-fixnear-bg/50 text-xs text-fixnear-muted uppercase tracking-wide">
+                        <th scope="col" className="text-left px-5 sm:px-6 py-3 font-semibold">Ref</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Customer</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Service</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Address</th>
+                        <th scope="col" className="text-left px-4 py-3 font-semibold">Status</th>
+                        <th scope="col" className="text-right px-5 sm:px-6 py-3 font-semibold">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Empty state below demo rows */}
-              <div className="mt-4 border-t border-fixnear-border pt-4">
-                <EmptyState
-                  title="No real booking requests yet"
-                  description="Real incoming booking requests will appear here once customers submit them and the booking backend is connected."
-                  icon={
-                    <svg className="w-6 h-6 text-fixnear-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                    </svg>
-                  }
-                />
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-fixnear-border/60">
+                      {bookings.map((b) => (
+                        <tr key={b.id} className="hover:bg-fixnear-bg/40 transition-colors">
+                          <td className="px-5 sm:px-6 py-3.5 font-mono text-xs text-fixnear-muted whitespace-nowrap">
+                            {b.id.slice(0, 8)}...
+                          </td>
+                          <td className="px-4 py-3.5 font-medium text-fixnear-navy whitespace-nowrap">
+                            {b.customer?.name || "Client"}
+                            {b.customer?.email && (
+                              <span className="block text-xs text-fixnear-muted font-normal">
+                                {b.customer.email}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 text-fixnear-text">
+                            {b.professionalService?.title || "Custom Service"}
+                          </td>
+                          <td className="px-4 py-3.5 text-fixnear-muted text-xs">
+                            {b.address}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <StatusBadge status={mapStatusToBadge(b.status)} size="sm" />
+                          </td>
+                          <td className="px-5 sm:px-6 py-3.5 text-right whitespace-nowrap">
+                            {b.status === "PENDING" && (
+                              <div className="inline-flex items-center gap-1.5 justify-end">
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  disabled={actionInProgress === b.id}
+                                  onClick={() => handleStatusUpdate(b.id, "ACCEPTED")}
+                                  className="h-7 text-xs px-2.5"
+                                >
+                                  Accept
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={actionInProgress === b.id}
+                                  onClick={() => handleStatusUpdate(b.id, "REJECTED")}
+                                  className="h-7 text-xs px-2.5 text-fixnear-error border-fixnear-error/30 hover:bg-fixnear-error/10"
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
+                            {b.status === "ACCEPTED" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={actionInProgress === b.id}
+                                onClick={() => handleStatusUpdate(b.id, "COMPLETED")}
+                                className="h-7 text-xs px-2.5 text-fixnear-success border-fixnear-success/30 hover:bg-fixnear-success/10"
+                              >
+                                Mark Completed
+                              </Button>
+                            )}
+                            {(b.status === "COMPLETED" || b.status === "REJECTED" || b.status === "CANCELLED") && (
+                              <span className="text-xs text-fixnear-muted italic">Archived</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </section>
-
-        {/* ── Services Offered placeholder ──────────────────────────── */}
-        <section aria-labelledby="pro-services-heading" id="services">
-          <Card>
-            <CardHeader>
-              <CardTitle>Services Offered</CardTitle>
-              <CardDescription>
-                Configure which services you offer. Service management will be available after backend integration.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EmptyState
-                title="Service management coming soon"
-                description="Once the backend is connected, you will be able to add, edit, and remove the services you offer. Customers will see these on your public profile."
-                action={
-                  <Link
-                    href="/categories"
-                    className="inline-flex items-center justify-center font-medium leading-none select-none transition-colors duration-150 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fixnear-ring focus-visible:ring-offset-2 bg-white text-fixnear-text hover:bg-fixnear-bg active:bg-[#EDF2F7] border border-fixnear-border shadow-xs h-8 px-3 text-xs gap-1.5 rounded-md"
-                  >
-                    Browse All Categories
-                  </Link>
-                }
-              />
-            </CardContent>
-          </Card>
-        </section>
-
       </div>
     </DashboardShell>
   );

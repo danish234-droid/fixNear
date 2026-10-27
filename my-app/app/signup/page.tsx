@@ -2,8 +2,10 @@
 
 import React, { useState, useId, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button, Badge } from "@/components/ui";
+import { registerApi, loginApi } from "@/lib/auth";
 import {
   User,
   Briefcase,
@@ -62,6 +64,7 @@ function isValidEmail(email: string): boolean {
 }
 
 export default function SignUpPage() {
+  const router = useRouter();
   const formId = useId();
 
   const [formData, setFormData] = useState<SignUpFormState>({
@@ -77,7 +80,8 @@ export default function SignUpPage() {
   const [errors, setErrors] = useState<SignUpFormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [submittedRole, setSubmittedRole] = useState<UserRole | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,6 +94,7 @@ export default function SignUpPage() {
       if (errors[name as keyof SignUpFormErrors]) {
         setErrors((prev) => ({ ...prev, [name]: undefined }));
       }
+      setServerError(null);
     },
     [errors]
   );
@@ -150,41 +155,49 @@ export default function SignUpPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    // Store submitted role to show tailored confirmation message
-    // NOTE: This is a frontend prototype. We do NOT:
-    // - Send data to an API
-    // - Store credentials or personal info in localStorage, sessionStorage, or cookies
-    // - Log passwords or phone numbers to the console
-    setSubmittedRole(formData.role);
+    setIsLoading(true);
+    setServerError(null);
 
-    // Reset sensitive password fields
-    setFormData((prev) => ({
-      ...prev,
-      password: "",
-      confirmPassword: "",
-    }));
-    setErrors({});
-  };
+    const apiRole = formData.role === "professional" ? "PROFESSIONAL" : "CUSTOMER";
 
-  const handleReset = () => {
-    setSubmittedRole(null);
-    setFormData({
-      role: "customer",
-      fullName: "",
-      email: "",
-      phone: "",
-      password: "",
-      confirmPassword: "",
-      agreedToTerms: false,
+    const regResult = await registerApi({
+      name: formData.fullName.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      role: apiRole,
+      phone: formData.phone.trim(),
     });
-    setErrors({});
+
+    if (!regResult.ok) {
+      setServerError(regResult.error);
+      setIsLoading(false);
+      return;
+    }
+
+    // Attempt automatic login
+    const loginResult = await loginApi(formData.email.trim(), formData.password);
+
+    if (!loginResult.ok) {
+      // Fallback: registration succeeded, redirect to login
+      router.push("/login?registered=1");
+      return;
+    }
+
+    // Redirect to role-appropriate dashboard
+    if (loginResult.user.role === "PROFESSIONAL") {
+      router.push("/dashboard/professional");
+    } else if (loginResult.user.role === "ADMIN") {
+      router.push("/dashboard/admin");
+    } else {
+      router.push("/dashboard/customer");
+    }
   };
 
   return (
@@ -192,79 +205,25 @@ export default function SignUpPage() {
       title="Create your FixNear account"
       subtitle="Join customers and local trade professionals on FixNear"
     >
-      {/* ─────────────────────────────────────────────
-          SUCCESS FEEDBACK STATE (HONEST PROTOTYPE MESSAGE)
-          ───────────────────────────────────────────── */}
-      {submittedRole ? (
+      {serverError && (
         <div
-          className="space-y-6"
-          role="status"
-          aria-live="polite"
-          id={`${formId}-success`}
+          role="alert"
+          className="mb-5 p-4 rounded-xl bg-[#FDF2F2] border border-[#F9CACA] text-fixnear-error text-xs sm:text-sm flex items-start gap-3"
         >
-          {/* Success banner */}
-          <div className="p-5 rounded-xl bg-[#EAF5EE] border border-[#C6E7D0] text-fixnear-success">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="w-6 h-6 shrink-0 mt-0.5 text-fixnear-success" />
-              <div className="space-y-1.5">
-                <h2 className="text-base font-bold text-fixnear-success leading-snug">
-                  Registration Form Validated
-                </h2>
-                <p className="text-xs sm:text-sm text-fixnear-success/90 leading-relaxed">
-                  Your form is valid. Account registration will be available when
-                  authentication is connected.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Role Summary Notice */}
-          <div className="p-4 rounded-xl bg-fixnear-bg border border-fixnear-border text-xs sm:text-sm space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-fixnear-muted">Selected Account Type:</span>
-              <Badge variant="info" size="sm" className="capitalize font-semibold">
-                {submittedRole === "customer" ? "Customer Account" : "Trade Professional"}
-              </Badge>
-            </div>
-            <p className="text-xs text-fixnear-muted leading-relaxed">
-              {submittedRole === "customer"
-                ? "When connected, Customer accounts will allow you to request service bookings, view job histories, and message technicians."
-                : "When connected, Professional accounts will allow you to manage service offerings, respond to booking requests, and define coverage areas."}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="space-y-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              onClick={handleReset}
-              className="w-full"
-              leftIcon={<RotateCcw className="w-4 h-4" />}
-            >
-              Reset Form
-            </Button>
-            <div className="text-center">
-              <Link
-                href="/login"
-                className="text-xs font-semibold text-fixnear-blue hover:text-fixnear-navy underline"
-              >
-                Go to Login Page
-              </Link>
-            </div>
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-fixnear-error" />
+          <div>
+            <p className="font-semibold">Registration Failed</p>
+            <p className="text-xs text-fixnear-error/90 mt-0.5">{serverError}</p>
           </div>
         </div>
-      ) : (
-        /* ─────────────────────────────────────────────
-            ACTIVE REGISTRATION FORM
-            ───────────────────────────────────────────── */
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="space-y-5"
-          aria-label="FixNear account registration form"
-        >
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="space-y-5"
+        aria-label="FixNear account registration form"
+      >
           {/* 1. ROLE SELECTION CARDS */}
           <fieldset className="space-y-2">
             <legend className="text-xs font-bold text-fixnear-navy uppercase tracking-wider mb-2">
@@ -632,9 +591,10 @@ export default function SignUpPage() {
             type="submit"
             variant="primary"
             size="lg"
+            disabled={isLoading}
             className="w-full font-semibold shadow-xs"
           >
-            Create Account
+            {isLoading ? "Creating Account..." : "Create Account"}
           </Button>
 
           {/* LINK TO LOGIN */}
@@ -648,7 +608,6 @@ export default function SignUpPage() {
             </Link>
           </div>
         </form>
-      )}
     </AuthShell>
   );
 }
