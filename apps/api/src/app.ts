@@ -24,23 +24,38 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 // API routes
 app.use("/api", apiRouter);
 
-// JSON 404 handler
-app.use((_req: Request, res: Response) => {
+// JSON 404 handler for unknown routes
+app.use((req: Request, res: Response) => {
   res.status(404).json({
-    error: {
-      message: "Resource not found",
-      status: 404,
-    },
+    error: "Not Found",
+    message: `Cannot ${req.method} ${req.originalUrl}`,
+    status: 404,
   });
 });
 
-// Global error handler - avoid exposing internal error details
+// Centralized error-handling middleware - do not expose stack traces or internal details
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({
-    error: {
-      message: "Internal Server Error",
-      status: 500,
-    },
+  const error = err as { status?: number; statusCode?: number; message?: string };
+  const statusCode =
+    typeof error?.status === "number"
+      ? error.status
+      : typeof error?.statusCode === "number"
+      ? error.statusCode
+      : 500;
+
+  if (statusCode >= 500) {
+    console.error("Unhandled error:", err);
+  }
+
+  const isProduction = env.NODE_ENV === "production";
+  const message =
+    statusCode >= 500 && isProduction
+      ? "Internal Server Error"
+      : error?.message || "Internal Server Error";
+
+  res.status(statusCode).json({
+    error: statusCode >= 500 ? "Internal Server Error" : "Error",
+    message,
+    status: statusCode,
   });
 });

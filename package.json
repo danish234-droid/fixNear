@@ -5,6 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev:api": "npm --prefix apps/api run dev",
+    "build:api": "npm --prefix apps/api run build",
+    "start:api": "npm --prefix apps/api run start",
+    "prisma:generate": "npm --prefix apps/api run prisma:generate",
+    "prisma:validate": "npm --prefix apps/api run prisma:validate",
     "dev:web": "npm --prefix my-app run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

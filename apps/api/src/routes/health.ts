@@ -6,6 +6,5 @@ healthRouter.get("/", (_req, res) => {
   res.status(200).json({
     status: "ok",
     message: "FixNear API is running",
-    timestamp: new Date().toISOString(),
   });
 });
